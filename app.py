@@ -2,20 +2,52 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 from sklearn.linear_model import Ridge
 from sklearn.decomposition import PCA
 
 # Title and Introduction
-st.title("📊 Analisis Canggih Program Sovis - Guidebook Pengobatan Massal")
+st.title("📊 Analisis Canggih Program Sovis - RCA dan Efisiensi Operasional")
 st.markdown("""
-### 📖 Evaluasi Efisiensi, Kinerja, dan Prediksi
-Selamat datang di dashboard interaktif untuk memantau kinerja anggota tim Program Guidebook Pengobatan Massal. 
-Dashboard ini dilengkapi dengan analisis mendalam menggunakan algoritma canggih untuk membantu Anda memahami 
-efisiensi, kontribusi, dan proyeksi kerja dari tiap bab guidebook. 
+### 📖 Evaluasi Efisiensi, RCA, dan Prediksi Kinerja
+Dashboard ini mengintegrasikan analisis Root Cause Analysis (RCA), efisiensi operasional, dan prediksi kinerja anggota program. Dilengkapi dengan visualisasi canggih, analisis mendalam, dan prediksi berbasis Machine Learning.
 """)
 
-# Data Simulasi (Variabel Analisis Lebih Banyak)
+# Data Simulasi RCA
+data_rca = {
+    'CI': [1, 2, 3, 4, 5],
+    'CV': [0.3, 0.4, 0.5, 0.2, 0.1],
+    'IC': [1.5, 2.0, 1.8, 0.8, 1.2],
+    'CP': 1.2,
+    'PD': 0.9,
+    'SD': 0.8,
+    'ST': 0.85,
+    'SI': 0.75,
+    'MP': 0.7,
+    'VF': 0.9
+}
+
+PI = 5  # Faktor Utama
+time_decay = 0.1  # Lambda untuk eksponensial decay
+time_periods = np.array([1, 2, 3, 4, 5])
+
+# Rumus RCA
+def calculate_rca_time(PI, CI, CV, IC, CP, PD, SD, ST, SI, MP, VF, t, decay):
+    contributions = [
+        (PI + np.log(1 + ci * cv) / np.sqrt(ic)) * np.exp(-decay * t[i])
+        for i, (ci, cv, ic) in enumerate(zip(CI, CV, IC))
+    ]
+    RCA = sum(contributions) * CP * PD * SD * ST * SI * (MP + VF)
+    return RCA, contributions
+
+RCA_final_time, contributions_time = calculate_rca_time(
+    PI, data_rca['CI'], data_rca['CV'], data_rca['IC'], data_rca['CP'], data_rca['PD'],
+    data_rca['SD'], data_rca['ST'], data_rca['SI'], data_rca['MP'], data_rca['VF'],
+    time_periods, time_decay
+)
+
+# Data Simulasi Bab
 data_bab = pd.DataFrame({
     'Bab': ['Pendahuluan', 'Pemeriksaan Dewasa', 'Manajemen Farmasi', 'Alur Pengobatan', 'Penutup'],
     'Target (%)': [100, 100, 100, 100, 100],
@@ -56,7 +88,7 @@ data_bab['Kontribusi Efisiensi (KE)'] = (
     data_bab['Efisiensi Operasional Relatif (EOR)'] * data_bab['Kontribusi (%)'] / 100
 )
 
-# Analisis Dimensi dengan PCA
+# Analisis PCA
 features = ['Target (%)', 'Realisasi (%)', 'Efektivitas (%)', 'Kompleksitas (%)', 
             'Kepatuhan Prosedur (%)', 'Kedisiplinan (%)', 'Index Kinerja Komposit (IKK)']
 scaler = StandardScaler()
@@ -67,17 +99,35 @@ pca_result = pca.fit_transform(data_scaled)
 data_bab['PCA1'] = pca_result[:, 0]
 data_bab['PCA2'] = pca_result[:, 1]
 
-# Visualisasi Data Utama
-st.subheader("📌 Visualisasi Data Kinerja dan Efisiensi")
-fig1 = px.bar(
-    data_bab, 
-    x='Bab', 
-    y=['Realisasi (%)', 'Efisiensi Operasional Relatif (EOR)', 'Index Kinerja Komposit (IKK)'], 
-    barmode='group',
-    title='Realisasi, Efisiensi, dan Kinerja Komposit'
+# Visualisasi Kontribusi RCA
+st.subheader("📌 Visualisasi Kontribusi RCA dan Efisiensi Operasional")
+df_contributions = pd.DataFrame({
+    'CI': data_rca['CI'],
+    'Contribution': contributions_time,
+    'Time Period': time_periods
+})
+fig_contributions = px.bar(
+    df_contributions,
+    x='CI',
+    y='Contribution',
+    title='Kontribusi Faktor CI terhadap RCA',
+    labels={'Contribution': 'Kontribusi'},
+    template='plotly_white'
 )
-st.plotly_chart(fig1, use_container_width=True)
+st.plotly_chart(fig_contributions, use_container_width=True)
 
+# Visualisasi RCA Over Time
+fig_time = px.line(
+    df_contributions,
+    x='Time Period',
+    y='Contribution',
+    title='RCA Over Time',
+    labels={'Contribution': 'RCA Score'},
+    template='plotly_white'
+)
+st.plotly_chart(fig_time, use_container_width=True)
+
+# Visualisasi PCA
 fig2 = px.scatter(
     data_bab,
     x='PCA1', y='PCA2', color='Bab',
@@ -87,53 +137,10 @@ fig2 = px.scatter(
 )
 st.plotly_chart(fig2, use_container_width=True)
 
-# Prediksi Waktu Penyelesaian
-st.sidebar.header("Prediksi Bab Baru")
-target = st.sidebar.slider("Target (%)", min_value=80, max_value=100, value=100)
-realisasi = st.sidebar.slider("Realisasi (%)", min_value=70, max_value=100, value=90)
-efektivitas = st.sidebar.slider("Efektivitas (%)", min_value=70, max_value=100, value=85)
-kompleksitas = st.sidebar.slider("Kompleksitas (%)", min_value=60, max_value=100, value=80)
-kedisiplinan = st.sidebar.slider("Kedisiplinan (%)", min_value=70, max_value=100, value=90)
-
-X_new = pd.DataFrame({
-    'Target (%)': [target],
-    'Realisasi (%)': [realisasi],
-    'Efektivitas (%)': [efektivitas],
-    'Kompleksitas (%)': [kompleksitas],
-    'Kedisiplinan (%)': [kedisiplinan]
-})
-poly = PolynomialFeatures(degree=3)
-ridge = Ridge(alpha=0.1).fit(poly.fit_transform(data_bab[features]), data_bab['Waktu Realisasi (Minggu)'])
-predicted_time = ridge.predict(poly.transform(X_new))
-
-# Tampilkan Prediksi
-st.subheader("🔮 Prediksi Waktu Penyelesaian Bab Baru")
-st.markdown(f"""
-- **Target (%)**: {target}  
-- **Realisasi (%)**: {realisasi}  
-- **Efektivitas (%)**: {efektivitas}  
-- **Kompleksitas (%)**: {kompleksitas}  
-- **Kedisiplinan (%)**: {kedisiplinan}  
-- **Prediksi Waktu Penyelesaian**: **{predicted_time[0]:.2f} Minggu**  
-""")
-
 # Kesimpulan
-st.subheader("📋 Interpretasi Hasil")
-max_efficiency = data_bab['Efisiensi Operasional Relatif (EOR)'].idxmax()
-max_delay = data_bab['Dampak Keterlambatan (DK) (%)'].idxmax()
+st.subheader("📋 Kesimpulan dan Interpretasi")
 st.markdown(f"""
-1. **Efisiensi Operasional Relatif (EOR)** tertinggi ditemukan pada Bab **{data_bab.iloc[max_efficiency]['Bab']}** 
-   dengan skor **{data_bab.iloc[max_efficiency]['Efisiensi Operasional Relatif (EOR)']:.2f}**.
-2. Bab dengan **Dampak Keterlambatan (DK)** tertinggi adalah **{data_bab.iloc[max_delay]['Bab']}** 
-   sebesar **{data_bab.iloc[max_delay]['Dampak Keterlambatan (DK) (%)']:.2f}%**.
-3. Index Kinerja Komposit (IKK) memberikan pandangan menyeluruh tentang kinerja tiap bab berdasarkan kontribusi, efektivitas, dan kepatuhan prosedur.
-4. Prediksi waktu penyelesaian untuk bab baru membantu merencanakan alokasi waktu lebih baik.
+- **RCA Final (Time):** {RCA_final_time:.2f}  
+- **Efisiensi Operasional Relatif (EOR)** tertinggi ditemukan pada Bab **{data_bab.iloc[data_bab['Efisiensi Operasional Relatif (EOR)'].idxmax()]['Bab']}**.  
+- **Dampak Keterlambatan (DK)** tertinggi terjadi pada Bab **{data_bab.iloc[data_bab['Dampak Keterlambatan (DK) (%)'].idxmax()]['Bab']}**.  
 """)
-
-# Download Data
-st.download_button(
-    label="📥 Download Data Lengkap sebagai CSV",
-    data=data_bab.to_csv(index=False),
-    file_name="analisis_program_advanced.csv",
-    mime="text/csv"
-)
