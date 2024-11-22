@@ -10,7 +10,7 @@ st.title("📊 Analisis Ketercapaian Program Sovis - Guidebook Pengobatan Massal
 st.markdown("""
 ### 📖 Evaluasi Efisiensi, Kinerja, dan Prediksi
 Dashboard ini dirancang untuk memberikan analisis mendalam terkait performa anggota tim. Dengan data dan visualisasi interaktif, 
-Anda dapat memahami efisiensi, kontribusi, dan proyeksi dari setiap bab dalam Guidebook.
+PI BPH Oxy dapat menilai efisiensi, kontribusi, dan proyeksi dari setiap bab dalam Guidebook Batsal Sovis.
 """)
 
 # Sidebar for Input and Navigation
