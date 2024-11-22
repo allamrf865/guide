@@ -6,7 +6,7 @@ from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 from sklearn.linear_model import Ridge
 
 # Title and Subtitle
-st.title("📊 Analisis Canggih Program Sovis - Guidebook Pengobatan Massal")
+st.title("📊 Analisis Ketercapaian Program Sovis - Guidebook Pengobatan Massal")
 st.markdown("""
 ### 📖 Evaluasi Efisiensi, Kinerja, dan Prediksi
 Dashboard ini dirancang untuk memberikan analisis mendalam terkait performa anggota tim. Dengan data dan visualisasi interaktif, 
