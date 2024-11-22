@@ -1,19 +1,28 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import Ridge
 
 # Title and Subtitle
-st.title("📊 Analisis Ketercapaian Program Sovis - Guidebook Pengobatan Massal")
+st.title("📊 Analisis Program Sovis - Guidebook Pengobatan Massal")
 st.markdown("""
 ### 📖 Evaluasi Efisiensi, Dampak, dan Proyeksi Program
 Selamat datang di dashboard interaktif untuk memantau kemajuan dan performa Program Guidebook Pengobatan Massal. 
-Gunakan visualisasi ini untuk mendapatkan wawasan mendalam!
+Gunakan visualisasi dan analisis interaktif ini untuk mendapatkan wawasan mendalam!
 """)
 
-# Simulasi Data
+# Sidebar untuk filter dan opsi
+st.sidebar.header("📂 Filter dan Opsi Analisis")
+selected_bab = st.sidebar.multiselect(
+    "Pilih Bab untuk Analisis:",
+    options=["Pendahuluan", "Pemeriksaan Dewasa", "Manajemen Farmasi", "Alur Pengobatan", "Penutup"],
+    default=["Pendahuluan", "Pemeriksaan Dewasa", "Manajemen Farmasi", "Alur Pengobatan", "Penutup"]
+)
+
+# Data Simulasi
 data_bab = pd.DataFrame({
     'Bab': ['Pendahuluan', 'Pemeriksaan Dewasa', 'Manajemen Farmasi', 'Alur Pengobatan', 'Penutup'],
     'Target (%)': [100, 100, 100, 100, 100],
@@ -23,99 +32,98 @@ data_bab = pd.DataFrame({
     'Waktu Realisasi (Minggu)': [2, 5, 4, 5, 2]
 })
 
-# Rumus Efisiensi Operasional Relatif (EOR)
+# Filter berdasarkan Bab
+filtered_data = data_bab[data_bab["Bab"].isin(selected_bab)]
+
+# Perhitungan Efisiensi Operasional Relatif (EOR)
 alpha = 1.2
 beta = 1.5
-data_bab['Efisiensi Operasional Relatif (EOR)'] = (
-    (data_bab['Realisasi (%)'] * data_bab['Efektivitas (%)']) ** alpha
+filtered_data['Efisiensi Operasional Relatif (EOR)'] = (
+    (filtered_data['Realisasi (%)'] * filtered_data['Efektivitas (%)']) ** alpha
 ) / (
-    (data_bab['Waktu Realisasi (Minggu)'] ** beta) * np.log(data_bab['Target (%)'])
+    (filtered_data['Waktu Realisasi (Minggu)'] ** beta) * np.log(filtered_data['Target (%)'])
 )
 
-# Rumus Dampak Keterlambatan (DK)
-data_bab['Dampak Keterlambatan (DK) (%)'] = np.abs(
-    data_bab['Waktu Realisasi (Minggu)'] - data_bab['Waktu Target (Minggu)']
-) / data_bab['Waktu Target (Minggu)'] * 100
+# Perhitungan Dampak Keterlambatan (DK)
+filtered_data['Dampak Keterlambatan (DK) (%)'] = np.abs(
+    filtered_data['Waktu Realisasi (Minggu)'] - filtered_data['Waktu Target (Minggu)']
+) / filtered_data['Waktu Target (Minggu)'] * 100
 
-# Proyeksi Waktu Penyelesaian dengan Polynomial Ridge Regression
+# Model Ridge Regression untuk prediksi waktu penyelesaian
 poly = PolynomialFeatures(degree=3)
-X = data_bab[['Target (%)', 'Realisasi (%)', 'Efektivitas (%)']]
-y = data_bab['Waktu Realisasi (Minggu)']
+X = filtered_data[['Target (%)', 'Realisasi (%)', 'Efektivitas (%)']]
+y = filtered_data['Waktu Realisasi (Minggu)']
 X_poly = poly.fit_transform(X)
 ridge = Ridge(alpha=0.1).fit(X_poly, y)
 
-# Prediksi Waktu Penyelesaian untuk Bab Baru
+# Input data untuk prediksi baru
+st.sidebar.header("Prediksi Bab Baru")
+target = st.sidebar.slider("Target (%)", min_value=80, max_value=100, value=100)
+realisasi = st.sidebar.slider("Realisasi (%)", min_value=70, max_value=100, value=90)
+efektivitas = st.sidebar.slider("Efektivitas (%)", min_value=70, max_value=100, value=85)
+
 X_new = pd.DataFrame({
-    'Target (%)': [100, 100],
-    'Realisasi (%)': [95, 90],
-    'Efektivitas (%)': [85, 80]
+    'Target (%)': [target],
+    'Realisasi (%)': [realisasi],
+    'Efektivitas (%)': [efektivitas]
 })
 X_new_poly = poly.transform(X_new)
-predicted_times = ridge.predict(X_new_poly)
+predicted_time = ridge.predict(X_new_poly)
 
-# Data Proyeksi
-proyeksi_data = pd.DataFrame({
-    'Bab': ['Bab 6', 'Bab 7'],
-    'Prediksi Waktu (Minggu)': predicted_times
-})
+# Visualisasi Data
+st.subheader("📌 Analisis Data dan Proyeksi")
+col1, col2 = st.columns(2)
 
-# UI - Multi-layer Chart
-st.subheader("📌 Ketercapaian Program dan Efisiensi")
-fig = go.Figure()
+with col1:
+    fig1 = px.bar(
+        filtered_data,
+        x="Bab",
+        y=["Realisasi (%)", "Efisiensi Operasional Relatif (EOR)"],
+        barmode="group",
+        labels={"value": "Skor", "Bab": "Bab"},
+        title="Realisasi dan Efisiensi Operasional"
+    )
+    st.plotly_chart(fig1, use_container_width=True)
 
-# Layer 1: Bar Chart (Realisasi dan EOR)
-fig.add_trace(go.Bar(
-    x=data_bab['Bab'],
-    y=data_bab['Realisasi (%)'],
-    name='Realisasi (%)',
-    marker=dict(color='rgb(26, 118, 255)')
-))
-fig.add_trace(go.Bar(
-    x=data_bab['Bab'],
-    y=data_bab['Efisiensi Operasional Relatif (EOR)'],
-    name='Efisiensi Operasional Relatif (EOR)',
-    marker=dict(color='rgb(255, 127, 14)')
-))
+with col2:
+    fig2 = px.line(
+        filtered_data,
+        x="Bab",
+        y="Dampak Keterlambatan (DK) (%)",
+        labels={"Dampak Keterlambatan (DK) (%)": "Dampak Keterlambatan (%)", "Bab": "Bab"},
+        title="Dampak Keterlambatan per Bab",
+        markers=True
+    )
+    st.plotly_chart(fig2, use_container_width=True)
 
-# Layer 2: Line Chart (Dampak Keterlambatan)
-fig.add_trace(go.Scatter(
-    x=data_bab['Bab'],
-    y=data_bab['Dampak Keterlambatan (DK) (%)'],
-    name='Dampak Keterlambatan (%)',
-    mode='lines+markers',
-    line=dict(color='rgb(214, 39, 40)', dash='dash')
-))
+# Proyeksi Waktu Penyelesaian
+st.subheader("🔮 Prediksi Waktu Penyelesaian Bab Baru")
+st.markdown(f"""
+- **Target (%)**: {target}  
+- **Realisasi (%)**: {realisasi}  
+- **Efektivitas (%)**: {efektivitas}  
+- **Prediksi Waktu Penyelesaian**: **{predicted_time[0]:.2f} Minggu**  
+""")
 
-# Layer 3: Proyeksi Waktu Penyelesaian
-fig.add_trace(go.Scatter(
-    x=proyeksi_data['Bab'],
-    y=proyeksi_data['Prediksi Waktu (Minggu)'],
-    name='Prediksi Waktu Penyelesaian (Minggu)',
-    mode='markers',
-    marker=dict(size=12, color='rgb(44, 160, 44)')
-))
+# Ringkasan Interaktif
+st.subheader("📋 Ringkasan")
+max_efficiency = filtered_data['Efisiensi Operasional Relatif (EOR)'].idxmax()
+max_delay = filtered_data['Dampak Keterlambatan (DK) (%)'].idxmax()
+st.markdown(f"""
+1. Bab dengan **Efisiensi Operasional Relatif (EOR)** tertinggi: **{filtered_data.iloc[max_efficiency]['Bab']}** 
+   dengan skor **{filtered_data.iloc[max_efficiency]['Efisiensi Operasional Relatif (EOR)']:.2f}**.
+2. Bab dengan **Dampak Keterlambatan (DK)** tertinggi: **{filtered_data.iloc[max_delay]['Bab']}** 
+   sebesar **{filtered_data.iloc[max_delay]['Dampak Keterlambatan (DK) (%)']:.2f}%**.
+""")
 
-# Layout
-fig.update_layout(
-    title='📊 Analisis Ketercapaian dan Proyeksi Guidebook',
-    xaxis_title='Bab',
-    yaxis_title='Skor atau Waktu',
-    legend_title='Indikator',
-    barmode='group',
-    template='plotly_white',
-    title_font=dict(size=20, color='rgb(56, 78, 108)')
+# Interaktif Tambahan: Tabel Data
+st.subheader("📊 Data Lengkap")
+st.dataframe(filtered_data)
+
+# Export Data
+st.download_button(
+    label="📥 Download Data sebagai CSV",
+    data=filtered_data.to_csv(index=False),
+    file_name="analisis_program.csv",
+    mime="text/csv"
 )
-st.plotly_chart(fig, use_container_width=True)
-
-# Kesimpulan
-st.markdown("""
-### 📌 Kesimpulan Utama
-1. **Efisiensi Operasional Relatif (EOR):** Bab "Pendahuluan" memiliki efisiensi terbaik dengan skor **{:.2f}**.
-2. **Dampak Keterlambatan:** Bab "Alur Pengobatan" menunjukkan dampak keterlambatan tertinggi sebesar **{:.2f}%**.
-3. **Proyeksi Penyelesaian:** Bab 6 dan Bab 7 diprediksi masing-masing memerlukan waktu **{:.2f} minggu** dan **{:.2f} minggu** untuk penyelesaian.
-""".format(
-    data_bab['Efisiensi Operasional Relatif (EOR)'].max(),
-    data_bab['Dampak Keterlambatan (DK) (%)'].max(),
-    predicted_times[0],
-    predicted_times[1]
-))
